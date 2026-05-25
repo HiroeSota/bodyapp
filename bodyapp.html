@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ボディメイク習慣アプリ</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #6C63FF;
+  --success: #48BB78;
+  --warning: #F6AD55;
+  --danger: #FC8181;
+  --bg: #0F0F1A;
+  --card: #1A1A2E;
+  --card2: #16213E;
+  --text: #E2E8F0;
+  --muted: #718096;
+  --border: #2D3748;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  padding-bottom: 80px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.header {
+  background: var(--card);
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.streak {
+  background: linear-gradient(135deg, #F6AD55, #FC8181);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.date-display { font-size: 12px; color: var(--muted); }
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 200;
+}
+.nav-btn {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 10px 4px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: color 0.2s;
+  font-size: 10px;
+}
+.nav-btn.active { color: var(--primary); }
+.nav-btn svg { width: 22px; height: 22px; }
+.screen { display: none; padding: 16px; }
+.screen.active { display: block; }
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+.card-title {
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+/* Checklist */
+.progress-summary {
+  background: linear-gradient(135deg, var(--primary), #9F7AEA);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 12px;
+  text-align: center;
+  transition: background 0.5s;
+}
+.progress-count { font-size: 40px; font-weight: 800; }
+.progress-label { font-size: 14px; opacity: 0.85; margin-top: 4px; }
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.check-item:last-child { border-bottom: none; }
+.check-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+.check-item.checked .check-box { background: var(--success); border-color: var(--success); }
+.check-item.checked { opacity: 0.65; }
+.check-item.checked .check-label { text-decoration: line-through; color: var(--muted); }
+.check-emoji { font-size: 20px; }
+.check-label { font-size: 15px; line-height: 1.4; flex: 1; }
+/* Snack */
+.snack-options { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.snack-btn {
+  background: var(--card2);
+  border: 2px solid var(--border);
+  color: var(--text);
+  padding: 9px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.snack-btn.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  transform: scale(1.05);
+}
+/* Calorie */
+.meter-section { margin-bottom: 16px; }
+.meter-section:last-of-type { margin-bottom: 0; }
+.meter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.meter-label { font-size: 14px; font-weight: 600; }
+.meter-value { font-size: 22px; font-weight: 800; }
+.meter-target { font-size: 12px; color: var(--muted); }
+.meter-bar {
+  height: 14px;
+  background: var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  border-radius: 7px;
+  transition: width 0.4s ease, background 0.4s ease;
+  background: linear-gradient(90deg, var(--primary), #9F7AEA);
+}
+.status-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.status-under { background: rgba(113,128,150,0.25); color: var(--muted); }
+.status-good  { background: rgba(72,187,120,0.25);  color: var(--success); }
+.status-over  { background: rgba(252,129,129,0.25); color: var(--danger); }
+.food-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.food-btn {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 82px;
+}
+.food-btn:active { transform: scale(0.93); }
+.food-btn .food-name { font-weight: 600; }
+.food-btn .food-nums { font-size: 11px; color: var(--muted); }
+.reset-btn {
+  background: rgba(252,129,129,0.15);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 14px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 10px;
+  font-weight: 600;
+}
+/* Guide */
+.guide-title {
+  font-size: 15px;
+  font-weight: 700;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+.guide-title.ok      { background: rgba(72,187,120,0.2);  color: var(--success); }
+.guide-title.caution { background: rgba(246,173,85,0.2);  color: var(--warning); }
+.guide-title.ng      { background: rgba(252,129,129,0.2); color: var(--danger);  }
+.guide-items { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.guide-tag {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.guide-tag.ok      { background: rgba(72,187,120,0.15);  color: #9AE6B4; border: 1px solid rgba(72,187,120,0.3); }
+.guide-tag.caution { background: rgba(246,173,85,0.15);  color: #FBD38D; border: 1px solid rgba(246,173,85,0.3); }
+.guide-tag.ng      { background: rgba(252,129,129,0.15); color: #FEB2B2; border: 1px solid rgba(252,129,129,0.3); }
+/* Toast */
+.toast {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-10px);
+  background: rgba(26,26,46,0.95);
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.25s;
+  z-index: 300;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+@keyframes pop {
+  0%,100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+.pop { animation: pop 0.25s ease; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>💪 ボディメイク</h1>
+    <div class="streak" id="streakBadge">🔥 1日</div>
+  </div>
+  <div class="date-display" id="dateDisplay"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<!-- Screen 1: Checklist -->
+<div id="screen-check" class="screen active">
+  <div class="progress-summary" id="progressSummary">
+    <div class="progress-count" id="progressCount">0 / 5</div>
+    <div class="progress-label">今日の習慣チェック</div>
+  </div>
+  <div class="card">
+    <div class="card-title">🌅 今日のルーティン</div>
+    <div id="checkList"></div>
+  </div>
+</div>
+
+<!-- Screen 2: Snack Checker -->
+<div id="screen-snack" class="screen">
+  <div class="card">
+    <div class="card-title">☀️ 昼の間食（1つまで）</div>
+    <div class="snack-options" id="snackDay"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🌙 夜のデザート（1つまで）</div>
+    <div class="snack-options" id="snackNight"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 今日の間食まとめ</div>
+    <div id="snackSummary" style="font-size:15px;color:var(--muted);line-height:1.9;">まだ選択なし</div>
+  </div>
+</div>
+
+<!-- Screen 3: Calorie Counter -->
+<div id="screen-cal" class="screen">
+  <div class="card">
+    <div class="meter-section">
+      <div class="meter-header">
+        <span class="meter-label">🔥 カロリー</span>
+        <div><span class="meter-value" id="calValue">0</span><span class="meter-target"> / 1900〜2000 kcal</span></div>
+      </div>
+      <div class="meter-bar"><div class="meter-fill" id="calFill" style="width:0%"></div></div>
+      <span class="status-badge status-under" id="calStatus">まだまだ 🍽️</span>
+    </div>
+    <div class="meter-section">
+      <div class="meter-header">
+        <span class="meter-label">💧 脂質</span>
+        <div><span class="meter-value" id="fatValue">0</span><span class="meter-target"> / 45〜50g</span></div>
+      </div>
+      <div class="meter-bar"><div class="meter-fill" id="fatFill" style="width:0%"></div></div>
+      <span class="status-badge status-under" id="fatStatus">余裕あり 👍</span>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🍱 メニューを追加</div>
+    <div class="food-btns" id="foodBtns"></div>
+    <button class="reset-btn" onclick="resetCalories()">🗑️ 今日の記録をリセット</button>
+  </div>
+  <div class="card">
+    <div class="card-title">📋 本日の記録</div>
+    <div id="foodLog" style="font-size:14px;color:var(--muted);line-height:1.9;">まだ記録なし</div>
+  </div>
+</div>
+
+<!-- Screen 4: Guide -->
+<div id="screen-guide" class="screen">
+  <div class="card">
+    <div class="guide-title ok">◎ 迷わず食え！</div>
+    <div class="guide-items" id="guideOk"></div>
+  </div>
+  <div class="card">
+    <div class="guide-title caution">▲ 量を守れば神</div>
+    <div class="guide-items" id="guideCaution"></div>
+  </div>
+  <div class="card">
+    <div class="guide-title ng">× 罠だ！回避せよ</div>
+    <div class="guide-items" id="guideNg"></div>
+  </div>
+</div>
+
+<!-- Bottom Nav -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="showScreen('check',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+    </svg>
+    チェック
+  </button>
+  <button class="nav-btn" onclick="showScreen('snack',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+    </svg>
+    間食
+  </button>
+  <button class="nav-btn" onclick="showScreen('cal',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
+    </svg>
+    カロリー
+  </button>
+  <button class="nav-btn" onclick="showScreen('guide',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/>
+    </svg>
+    図鑑
+  </button>
+</nav>
+
+<script>
+// ─── データ定義 ─────────────────────────────────────
+const CHECKS = [
+  { id:'c1', emoji:'🍎', label:'朝のりんご酢炭酸水（ストロー使用）' },
+  { id:'c2', emoji:'💧', label:'ジュースの代わりに水・炭酸水' },
+  { id:'c3', emoji:'🐔', label:'脂質カットを意識した食事' },
+  { id:'c4', emoji:'🛁', label:'お風呂上がりのリンパ流し' },
+  { id:'c5', emoji:'📝', label:'食事を記録した' },
+];
+
+const SNACK_DAY   = ['タフグミ','大福','ようかん','黒糖飴','焼き芋'];
+const SNACK_NIGHT = ['冷凍バナナ','冷凍みかん','ゼリー','低脂肪ヨーグルト'];
+
+const FOODS = [
+  { name:'白米 大盛', kcal:350, fat:0.9 },
+  { name:'白米 普通', kcal:250, fat:0.5 },
+  { name:'鶏むね肉', kcal:170, fat:2.5 },
+  { name:'鶏もも肉', kcal:250, fat:14  },
+  { name:'焼き魚',   kcal:200, fat:8   },
+  { name:'タラ蒸し', kcal:90,  fat:0.5 },
+  { name:'豆腐',     kcal:80,  fat:4   },
+  { name:'卵 1個',   kcal:80,  fat:6   },
+  { name:'納豆',     kcal:100, fat:5   },
+  { name:'味噌汁',   kcal:50,  fat:1   },
+  { name:'バナナ',   kcal:90,  fat:0.2 },
+  { name:'りんご',   kcal:60,  fat:0.1 },
+];
+
+const GUIDE = {
+  ok:      ['タラ','鮭','ノンオイルドレッシング','豆腐','鶏むね','納豆','もずく','キャベツ','きのこ類','こんにゃく','低脂肪ヨーグルト'],
+  caution: ['和菓子','タフグミ','冷凍バナナ','冷凍みかん','白米','そば','焼き芋','赤身肉','大福','ゼリー'],
+  ng:      ['マヨネーズ','カスタード','バター','チーズケーキ','ポテチ','揚げ物','菓子パン','コーラ・ジュース','マーガリン','脂身の多い肉'],
+};
+
+const CAL_MIN=1900, CAL_MAX=2000, FAT_MIN=45, FAT_MAX=50;
+
+// ─── ステート ─────────────────────────────────────
+function getToday() { return new Date().toISOString().slice(0,10); }
+function getYesterday() {
+  const d = new Date(); d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+let state = (() => {
+  const today = getToday();
+  const saved = JSON.parse(localStorage.getItem('bodyapp_v1') || '{}');
+  if (saved.date !== today) {
+    const streak = saved.date === getYesterday() ? (saved.streak||0)+1 : 1;
+    return { date:today, checks:{}, snackDay:null, snackNight:null, calories:0, fat:0, foodLog:[], streak };
+  }
+  return saved;
+})();
+
+function save() { localStorage.setItem('bodyapp_v1', JSON.stringify(state)); }
+
+// ─── 初期化 ──────────────────────────────────────
+function init() {
+  const now = new Date();
+  document.getElementById('dateDisplay').textContent =
+    now.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  document.getElementById('streakBadge').textContent = `🔥 ${state.streak}日連続`;
+
+  // チェックリスト
+  const list = document.getElementById('checkList');
+  CHECKS.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'check-item' + (state.checks[c.id] ? ' checked' : '');
+    div.id = 'ci-'+c.id;
+    div.innerHTML = `
+      <div class="check-box">${state.checks[c.id]?'✓':''}</div>
+      <span class="check-emoji">${c.emoji}</span>
+      <span class="check-label">${c.label}</span>`;
+    div.onclick = () => toggleCheck(c.id);
+    list.appendChild(div);
+  });
+  updateProgress();
+
+  // 間食
+  renderSnacks();
+
+  // カロリーメニュー
+  const fb = document.getElementById('foodBtns');
+  FOODS.forEach(f => {
+    const btn = document.createElement('button');
+    btn.className = 'food-btn';
+    btn.innerHTML = `<span class="food-name">${f.name}</span><span class="food-nums">${f.kcal}kcal / 脂${f.fat}g</span>`;
+    btn.onclick = () => addFood(f);
+    fb.appendChild(btn);
+  });
+  updateMeters();
+
+  // 図鑑
+  [['Ok','ok'],['Caution','caution'],['Ng','ng']].forEach(([cap,key]) => {
+    const el = document.getElementById('guide'+cap);
+    GUIDE[key].forEach(item => {
+      const s = document.createElement('span');
+      s.className = 'guide-tag '+key;
+      s.textContent = item;
+      el.appendChild(s);
+    });
+  });
+}
+
+// ─── チェックリスト ───────────────────────────────
+function toggleCheck(id) {
+  state.checks[id] = !state.checks[id];
+  const el = document.getElementById('ci-'+id);
+  el.classList.toggle('checked', state.checks[id]);
+  el.querySelector('.check-box').textContent = state.checks[id] ? '✓' : '';
+  el.classList.add('pop');
+  setTimeout(() => el.classList.remove('pop'), 250);
+  showToast(state.checks[id] ? '✅ チェック！' : '↩️ 取り消し');
+  updateProgress();
+  save();
+}
+
+function updateProgress() {
+  const done  = Object.values(state.checks).filter(Boolean).length;
+  const total = CHECKS.length;
+  document.getElementById('progressCount').textContent = `${done} / ${total}`;
+  const summary = document.getElementById('progressSummary');
+  if (done === total) {
+    summary.style.background = 'linear-gradient(135deg,#48BB78,#38A169)';
+    if (done > 0) showToast('🎉 全習慣コンプリート！');
+  } else {
+    summary.style.background = 'linear-gradient(135deg,#6C63FF,#9F7AEA)';
+  }
+}
+
+// ─── 間食 ────────────────────────────────────────
+function renderSnacks() {
+  ['Day','Night'].forEach(type => {
+    const data   = type === 'Day' ? SNACK_DAY : SNACK_NIGHT;
+    const stKey  = 'snack'+type;
+    const el     = document.getElementById('snack'+type);
+    el.innerHTML = '';
+    data.forEach(s => {
+      const btn = document.createElement('button');
+      btn.className = 'snack-btn' + (state[stKey]===s ? ' selected' : '');
+      btn.textContent = s;
+      btn.onclick = () => {
+        state[stKey] = state[stKey]===s ? null : s;
+        renderSnacks();
+        showToast(state[stKey] ? `✅ ${s} をセット！` : '選択解除');
+        save();
+      };
+      el.appendChild(btn);
+    });
+  });
+  const el = document.getElementById('snackSummary');
+  const lines = [];
+  if (state.snackDay)   lines.push(`☀️ 昼：${state.snackDay}`);
+  if (state.snackNight) lines.push(`🌙 夜：${state.snackNight}`);
+  el.style.whiteSpace = 'pre-line';
+  el.style.color = lines.length ? 'var(--text)' : 'var(--muted)';
+  el.textContent = lines.length ? lines.join('\n') : 'まだ選択なし';
+}
+
+// ─── カロリー ────────────────────────────────────
+function addFood(f) {
+  state.calories += f.kcal;
+  state.fat       = Math.round((state.fat + f.fat) * 10) / 10;
+  state.foodLog.push(f.name);
+  updateMeters();
+  showToast(`＋${f.kcal} kcal 追加！`);
+  save();
+}
+
+function resetCalories() {
+  state.calories = 0; state.fat = 0; state.foodLog = [];
+  updateMeters(); save(); showToast('🗑️ リセットしました');
+}
+
+function updateMeters() {
+  const cal = state.calories || 0;
+  const fat = state.fat      || 0;
+  document.getElementById('calValue').textContent = cal;
+  document.getElementById('fatValue').textContent = fat;
+
+  setMeter('cal', cal, CAL_MIN, CAL_MAX, 2200,
+    `あと ${CAL_MIN-cal} kcal`, '🎯 達成ゾーン！', `⚠️ +${cal-CAL_MAX} kcal オーバー！`);
+  setMeter('fat', fat, FAT_MIN, FAT_MAX, 60,
+    `あと ${(FAT_MIN-fat).toFixed(1)} g`, '🎯 達成ゾーン！', `⚠️ +${(fat-FAT_MAX).toFixed(1)} g オーバー！`);
+
+  const logEl = document.getElementById('foodLog');
+  if (state.foodLog && state.foodLog.length) {
+    const counts = {};
+    state.foodLog.forEach(n => counts[n] = (counts[n]||0)+1);
+    logEl.textContent = Object.entries(counts).map(([k,v])=> v>1?`${k} ×${v}`:k).join('、');
+    logEl.style.color = 'var(--text)';
+  } else {
+    logEl.textContent = 'まだ記録なし';
+    logEl.style.color = 'var(--muted)';
+  }
+}
+
+function setMeter(id, val, min, max, dispMax, underMsg, goodMsg, overMsg) {
+  const pct   = Math.min(val / dispMax * 100, 100);
+  const fill  = document.getElementById(id+'Fill');
+  const badge = document.getElementById(id+'Status');
+  fill.style.width = pct + '%';
+  if (val >= min && val <= max) {
+    fill.style.background = 'linear-gradient(90deg,#48BB78,#38A169)';
+    badge.className = 'status-badge status-good';
+    badge.textContent = goodMsg;
+  } else if (val > max) {
+    fill.style.background = 'linear-gradient(90deg,#FC8181,#E53E3E)';
+    badge.className = 'status-badge status-over';
+    badge.textContent = overMsg;
+  } else {
+    fill.style.background = 'linear-gradient(90deg,#6C63FF,#9F7AEA)';
+    badge.className = 'status-badge status-under';
+    badge.textContent = underMsg;
+  }
+}
+
+// ─── ナビ ─────────────────────────────────────────
+function showScreen(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── トースト ──────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+init();
+</script>
+</body>
+</html>
