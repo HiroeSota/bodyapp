@@ -304,6 +304,20 @@ canvas { display:block; border-radius:8px; }
   </div>
   <button class="yesterday-btn" onclick="showYesterdayModal()">📅 昨日の結果を見る</button>
   <div class="card">
+    <div class="card-title">⚖️ 今日の体重・体脂肪</div>
+    <div class="stats-row">
+      <div class="stats-field">
+        <label>体重 (kg)</label>
+        <input type="number" id="weightInput" placeholder="65.0" step="0.1" inputmode="decimal">
+      </div>
+      <div class="stats-field">
+        <label>体脂肪率 (%)</label>
+        <input type="number" id="bodyFatInput" placeholder="22.0" step="0.1" inputmode="decimal">
+      </div>
+    </div>
+    <button class="stats-save-btn" onclick="saveStats()">保存する</button>
+  </div>
+  <div class="card">
     <div class="card-title">🌅 今日のルーティン</div>
     <div id="checkList"></div>
   </div>
@@ -444,21 +458,6 @@ canvas { display:block; border-radius:8px; }
       <input type="number" id="goalWeightInput" placeholder="58.0" step="0.1" inputmode="decimal">
     </div>
     <button class="settings-btn" onclick="saveGoalWeight()">保存する</button>
-  </div>
-
-  <div class="card">
-    <div class="card-title">⚖️ 今日の体重・体脂肪</div>
-    <div class="stats-row">
-      <div class="stats-field">
-        <label>体重 (kg)</label>
-        <input type="number" id="weightInput" placeholder="65.0" step="0.1" inputmode="decimal">
-      </div>
-      <div class="stats-field">
-        <label>体脂肪率 (%)</label>
-        <input type="number" id="bodyFatInput" placeholder="22.0" step="0.1" inputmode="decimal">
-      </div>
-    </div>
-    <button class="stats-save-btn" onclick="saveStats()">保存する</button>
   </div>
 
   <div class="card">
@@ -760,28 +759,28 @@ function updateMeters() {
 
   // 残量カード
   const card=document.getElementById('remainingCard');
-  const remKcal=CAL_MIN-cal, remFat=FAT_MIN-fat;
+  const remKcal=CAL_MAX-cal, remFat=FAT_MAX-fat;
   const calOk=cal>=CAL_MIN&&cal<=CAL_MAX, calOver=cal>CAL_MAX;
   const fatOk=fat>=FAT_MIN&&fat<=FAT_MAX, fatOver=fat>FAT_MAX;
   if (calOver||fatOver) {
     card.className='remaining-card over';
-    document.getElementById('remainingTitle').textContent='⚠️ 目標オーバー！';
-    document.getElementById('remainingKcal').textContent=calOver?`+${cal-CAL_MAX}`:cal;
-    document.getElementById('remainingFat').textContent=fatOver?`+${(fat-FAT_MAX).toFixed(1)}`:(fat).toFixed(1);
+    document.getElementById('remainingTitle').textContent='⚠️ オーバー！';
+    document.getElementById('remainingKcal').textContent=calOver?`+${cal-CAL_MAX}`:0;
+    document.getElementById('remainingFat').textContent=fatOver?`+${(fat-FAT_MAX).toFixed(1)}`:'0.0';
   } else if (calOk&&fatOk) {
     card.className='remaining-card achieved';
-    document.getElementById('remainingTitle').textContent='🎯 目標達成ゾーン！';
-    document.getElementById('remainingKcal').textContent='✓';
-    document.getElementById('remainingFat').textContent='✓';
+    document.getElementById('remainingTitle').textContent='いい感じ！このゾーンをキープ！';
+    document.getElementById('remainingKcal').textContent=remKcal>0?remKcal:0;
+    document.getElementById('remainingFat').textContent=remFat>0?remFat.toFixed(1):'0.0';
   } else {
     card.className='remaining-card';
-    document.getElementById('remainingTitle').textContent='🎯 目標まであと';
+    document.getElementById('remainingTitle').textContent='🍽️ あとこれだけ食べていいよ';
     document.getElementById('remainingKcal').textContent=remKcal>0?remKcal:0;
     document.getElementById('remainingFat').textContent=remFat>0?remFat.toFixed(1):'0.0';
   }
 
   setMeter('cal',cal,CAL_MIN,CAL_MAX,CAL_MAX*1.3,
-    `あと ${CAL_MIN-cal} kcal`,'🎯 達成ゾーン！',`⚠️ +${cal-CAL_MAX} kcal オーバー！`);
+    `あと ${CAL_MAX-cal} kcal食べられる`,'🎯 達成ゾーン！',`⚠️ +${cal-CAL_MAX} kcal オーバー！`);
   setMeter('fat',fat,FAT_MIN,FAT_MAX,FAT_MAX*1.6,
     `あと ${(FAT_MIN-fat).toFixed(1)} g`,'🎯 達成ゾーン！',`⚠️ +${(fat-FAT_MAX).toFixed(1)} g オーバー！`);
 }
