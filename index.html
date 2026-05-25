@@ -539,8 +539,9 @@ function getChecks() { return customChecks; }
 function saveChecks() { localStorage.setItem('bodyapp_checks', JSON.stringify(customChecks)); }
 
 // ─── ステート ──────────────────────────────────────
-function getToday() { return new Date().toISOString().slice(0,10); }
-function getYesterday() { const d=new Date(); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+function fmtDate(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function getToday() { return fmtDate(new Date()); }
+function getYesterday() { const d=new Date(); d.setDate(d.getDate()-1); return fmtDate(d); }
 function loadHistory() { return JSON.parse(localStorage.getItem('bodyapp_history') || '{}'); }
 function saveHistory(h) { localStorage.setItem('bodyapp_history', JSON.stringify(h)); }
 
@@ -659,7 +660,7 @@ function updateWeeklyRate() {
   let achieved=0, total=0;
   for (let i=0; i<7; i++) {
     const d = new Date(); d.setDate(d.getDate()-i);
-    const key = d.toISOString().slice(0,10);
+    const key = fmtDate(d);
     const data = key===today
       ? { checkCount:getChecks().filter(c=>state.checks[c.id]).length, checkTotal:getChecks().length }
       : h[key];
@@ -715,7 +716,7 @@ function showYesterdayModal() {
   document.getElementById('yesterdayModal').style.display = 'flex';
 }
 function closeYesterdayModal(e) {
-  if (!e || e.target===document.getElementById('yesterdayModal') || e.type==='click')
+  if (!e || e.target===document.getElementById('yesterdayModal'))
     document.getElementById('yesterdayModal').style.display = 'none';
 }
 
@@ -777,8 +778,8 @@ function updateMeters() {
   if (calOver||fatOver) {
     card.className='remaining-card over';
     document.getElementById('remainingTitle').textContent='⚠️ オーバー！';
-    document.getElementById('remainingKcal').textContent=calOver?`+${cal-CAL_MAX}`:0;
-    document.getElementById('remainingFat').textContent=fatOver?`+${(fat-FAT_MAX).toFixed(1)}`:'0.0';
+    document.getElementById('remainingKcal').textContent=calOver?`+${cal-CAL_MAX}`:remKcal>0?remKcal:0;
+    document.getElementById('remainingFat').textContent=fatOver?`+${(fat-FAT_MAX).toFixed(1)}`:remFat>0?remFat.toFixed(1):'0.0';
   } else if (calOk&&fatOk) {
     card.className='remaining-card achieved';
     document.getElementById('remainingTitle').textContent='いい感じ！このゾーンをキープ！';
@@ -794,7 +795,7 @@ function updateMeters() {
   setMeter('cal',cal,CAL_MIN,CAL_MAX,CAL_MAX*1.3,
     `あと ${CAL_MAX-cal} kcal食べられる`,'🎯 達成ゾーン！',`⚠️ +${cal-CAL_MAX} kcal オーバー！`);
   setMeter('fat',fat,FAT_MIN,FAT_MAX,FAT_MAX*1.6,
-    `あと ${(FAT_MIN-fat).toFixed(1)} g`,'🎯 達成ゾーン！',`⚠️ +${(fat-FAT_MAX).toFixed(1)} g オーバー！`);
+    `あと ${(FAT_MAX-fat).toFixed(1)} g食べられる`,'🎯 達成ゾーン！',`⚠️ +${(fat-FAT_MAX).toFixed(1)} g オーバー！`);
 }
 function setMeter(id,val,min,max,dispMax,u,g,o) {
   const fill=document.getElementById(id+'Fill'), badge=document.getElementById(id+'Status');
@@ -961,9 +962,9 @@ function getGraphDays(period) {
     const weeks=[];
     for(let w=51;w>=0;w--){
       const wData=[];
-      for(let d=6;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-w*7-d);const key=dt.toISOString().slice(0,10);if(history[key])wData.push(history[key]);}
+      for(let d=6;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-w*7-d);const key=fmtDate(dt);if(history[key])wData.push(history[key]);}
       const startDt=new Date();startDt.setDate(startDt.getDate()-w*7-6);
-      const key=startDt.toISOString().slice(0,10);
+      const key=fmtDate(startDt);
       const wtPts=wData.filter(d=>d.weight!=null);
       const calPts=wData.filter(d=>d.calories>0);
       const aggData=(wtPts.length||calPts.length)?{
@@ -975,7 +976,7 @@ function getGraphDays(period) {
     return weeks;
   } else {
     const n=period==='7'?7:30, days=[];
-    for(let i=n-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toISOString().slice(0,10);days.push({key,data:history[key]||null});}
+    for(let i=n-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=fmtDate(d);days.push({key,data:history[key]||null});}
     return days;
   }
 }
