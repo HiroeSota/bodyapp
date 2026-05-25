@@ -175,6 +175,11 @@ body {
 .cal-legend { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
 .legend-item { display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); }
 .legend-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+/* Graph period toggle */
+.graph-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.graph-period-toggle { display:flex; gap:4px; }
+.period-btn { background:var(--card2); border:1px solid var(--border); color:#718096; padding:4px 10px; border-radius:20px; font-size:12px; cursor:pointer; transition:all 0.2s; }
+.period-btn.active { background:var(--primary); border-color:var(--primary); color:#fff; }
 /* Day detail */
 .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .detail-item { background:var(--card2); border-radius:10px; padding:10px 12px; }
@@ -396,11 +401,18 @@ canvas { display:block; border-radius:8px; }
     <div id="dayDetailContent"></div>
   </div>
   <div class="card">
-    <div class="card-title">📈 体重の推移（14日）</div>
+    <div class="graph-header">
+      <span class="card-title" style="margin:0">📈 体重の推移</span>
+      <div class="graph-period-toggle">
+        <button class="period-btn" id="periodBtn7" onclick="setGraphPeriod('7')">7日</button>
+        <button class="period-btn active" id="periodBtn30" onclick="setGraphPeriod('30')">30日</button>
+        <button class="period-btn" id="periodBtnYear" onclick="setGraphPeriod('year')">1年</button>
+      </div>
+    </div>
     <canvas id="weightGraph"></canvas>
   </div>
   <div class="card">
-    <div class="card-title">🔥 カロリーの推移（14日）</div>
+    <div class="card-title">🔥 カロリーの推移</div>
     <canvas id="calGraph"></canvas>
   </div>
 </div>
@@ -871,7 +883,7 @@ function changeMonth(d) {
   if (calViewMonth<0) {calViewMonth=11;calViewYear--;}
   renderMonthGrid();
 }
-function renderCalendar() { renderMonthGrid(); const days=getLast14Days(); drawWeightGraph(days); drawCalGraph(days); }
+function renderCalendar() { renderMonthGrid(); const days=getGraphDays(graphPeriod); drawWeightGraph(days,graphPeriod); drawCalGraph(days,graphPeriod); }
 
 function getDotColor(data) {
   if (!data) return null;
@@ -941,14 +953,48 @@ function showDayDetail(key,data,clickedCell) {
 }
 
 // ─── グラフ ───────────────────────────────────────
-function getLast14Days() {
-  const history=loadHistory(), days=[];
-  for(let i=13;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toISOString().slice(0,10);days.push({key,data:history[key]||null});}
-  return days;
+let graphPeriod='30';
+
+function getGraphDays(period) {
+  const history=loadHistory();
+  if (period==='year') {
+    const weeks=[];
+    for(let w=51;w>=0;w--){
+      const wData=[];
+      for(let d=6;d>=0;d--){const dt=new Date();dt.setDate(dt.getDate()-w*7-d);const key=dt.toISOString().slice(0,10);if(history[key])wData.push(history[key]);}
+      const startDt=new Date();startDt.setDate(startDt.getDate()-w*7-6);
+      const key=startDt.toISOString().slice(0,10);
+      const wtPts=wData.filter(d=>d.weight!=null);
+      const calPts=wData.filter(d=>d.calories>0);
+      const aggData=(wtPts.length||calPts.length)?{
+        weight:wtPts.length?Math.round(wtPts.reduce((s,d)=>s+d.weight,0)/wtPts.length*10)/10:null,
+        calories:calPts.length?Math.round(calPts.reduce((s,d)=>s+d.calories,0)/calPts.length):0
+      }:null;
+      weeks.push({key,data:aggData});
+    }
+    return weeks;
+  } else {
+    const n=period==='7'?7:30, days=[];
+    for(let i=n-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);const key=d.toISOString().slice(0,10);days.push({key,data:history[key]||null});}
+    return days;
+  }
 }
-function drawWeightGraph(days) {
-  const canvas=document.getElementById('weightGraph'), dpr=window.devicePixelRatio||1;
-  const W=canvas.parentElement.clientWidth-32, H=160;
+
+function drawXLabels(ctx,days,period,xFn,H) {
+  ctx.fillStyle='#718096';ctx.font='11px -apple-system,sans-serif';ctx.textAlign='center';
+  if(period==='year'){
+    let lastM=null;
+    days.forEach((d,i)=>{const m=parseInt(d.key.slice(5,7));if(m!==lastM){ctx.fillText(m+'月',xFn(i),H-8);lastM=m;}});
+  } else {
+    const n=days.length;
+    const ls=new Set([0,Math.round((n-1)/3),Math.round(2*(n-1)/3),n-1]);
+    days.forEach((d,i)=>{if(ls.has(i))ctx.fillText(d.key.slice(5).replace('-','/'),xFn(i),H-8);});
+  }
+}
+
+function drawWeightGraph(days,period) {
+  const canvas=document.getElementById('weightGraph'),dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-32,H=160;
   canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
   const pad={top:20,right:16,bottom:32,left:42},gW=W-pad.left-pad.right,gH=H-pad.top-pad.bottom;
@@ -959,44 +1005,37 @@ function drawWeightGraph(days) {
   const goalW=profile.goalWeight||null;
   const allW=goalW?[...ws,goalW]:ws;
   const minW=Math.min(...allW)-1,maxW=Math.max(...allW)+1,rng=maxW-minW||2,n=days.length;
-  const xOf=i=>pad.left+(i/(n-1))*gW, yOf=w=>pad.top+gH-((w-minW)/rng)*gH;
+  const xOf=i=>pad.left+(i/(n-1))*gW,yOf=w=>pad.top+gH-((w-minW)/rng)*gH;
   ctx.strokeStyle='rgba(45,55,72,0.8)';ctx.lineWidth=1;
   for(let i=0;i<=4;i++){const y=pad.top+(gH/4)*i;ctx.beginPath();ctx.moveTo(pad.left,y);ctx.lineTo(pad.left+gW,y);ctx.stroke();}
   ctx.fillStyle='#718096';ctx.font='11px -apple-system,sans-serif';ctx.textAlign='right';
   for(let i=0;i<=2;i++){const w=maxW-(rng/2)*i;ctx.fillText(w.toFixed(1),pad.left-4,yOf(w)+4);}
-  ctx.textAlign='center';
-  const wLabelSet=new Set([0,Math.round((n-1)/3),Math.round(2*(n-1)/3),n-1]);
-  days.forEach((d,i)=>{if(wLabelSet.has(i))ctx.fillText(d.key.slice(5).replace('-','/'),xOf(i),H-8);});
-  // Goal line
-  if (goalW) {
-    const gy=yOf(goalW);
-    ctx.strokeStyle='rgba(252,129,129,0.6)';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
-    ctx.beginPath();ctx.moveTo(pad.left,gy);ctx.lineTo(pad.left+gW,gy);ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle='#FEB2B2';ctx.font='bold 10px -apple-system,sans-serif';ctx.textAlign='left';
-    ctx.fillText(`目標 ${goalW}kg`,pad.left+4,gy-4);
-  }
+  drawXLabels(ctx,days,period,xOf,H);
+  if(goalW){const gy=yOf(goalW);ctx.strokeStyle='rgba(252,129,129,0.6)';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(pad.left,gy);ctx.lineTo(pad.left+gW,gy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#FEB2B2';ctx.font='bold 10px -apple-system,sans-serif';ctx.textAlign='left';ctx.fillText(`目標 ${goalW}kg`,pad.left+4,gy-4);}
   ctx.strokeStyle='#F6AD55';ctx.lineWidth=2.5;ctx.lineJoin='round';ctx.beginPath();
   let first=true;
   days.forEach((d,i)=>{if(!d.data||d.data.weight==null)return;const x=xOf(i),y=yOf(d.data.weight);if(first){ctx.moveTo(x,y);first=false;}else ctx.lineTo(x,y);});
   ctx.stroke();
+  const r=period==='7'?4:period==='30'?3:2;
+  const showLabel=period==='7';
   days.forEach((d,i)=>{
     if(!d.data||d.data.weight==null)return;
     const x=xOf(i),y=yOf(d.data.weight);
-    ctx.beginPath();ctx.arc(x,y,4,0,Math.PI*2);ctx.fillStyle='#F6AD55';ctx.fill();
-    ctx.fillStyle='#FBD38D';ctx.font='bold 11px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText(d.data.weight.toFixed(1),x,y-8);
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='#F6AD55';ctx.fill();
+    if(showLabel){ctx.fillStyle='#FBD38D';ctx.font='bold 11px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText(d.data.weight.toFixed(1),x,y-8);}
   });
 }
-function drawCalGraph(days) {
-  const canvas=document.getElementById('calGraph'), dpr=window.devicePixelRatio||1;
-  const W=canvas.parentElement.clientWidth-32, H=160;
+
+function drawCalGraph(days,period) {
+  const canvas=document.getElementById('calGraph'),dpr=window.devicePixelRatio||1;
+  const W=canvas.parentElement.clientWidth-32,H=160;
   canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
   const ctx=canvas.getContext('2d');ctx.scale(dpr,dpr);
   const pad={top:20,right:16,bottom:32,left:42},gW=W-pad.left-pad.right,gH=H-pad.top-pad.bottom;
   const maxCal=Math.max(CAL_MAX*1.4,2500),n=days.length;
   ctx.fillStyle='#16213E';ctx.fillRect(0,0,W,H);
   if(!days.some(d=>d.data&&d.data.calories>0)){ctx.fillStyle='#718096';ctx.font='13px -apple-system,sans-serif';ctx.textAlign='center';ctx.fillText('データがまだありません',W/2,H/2);return;}
-  const barW=Math.max(4,gW/n-4),xStep=gW/n;
+  const barW=Math.max(2,gW/n-2),xStep=gW/n;
   const xBar=i=>pad.left+i*xStep+(xStep-barW)/2;
   const yOf=v=>pad.top+gH-(v/maxCal)*gH,hOf=v=>(v/maxCal)*gH;
   ctx.strokeStyle='rgba(45,55,72,0.8)';ctx.lineWidth=1;
@@ -1007,15 +1046,22 @@ function drawCalGraph(days) {
   ctx.setLineDash([]);
   ctx.fillStyle='#718096';ctx.font='11px -apple-system,sans-serif';ctx.textAlign='right';
   [0,Math.round(maxCal/2),maxCal].forEach(v=>ctx.fillText(v,pad.left-4,yOf(v)+4));
-  ctx.textAlign='center';
-  const cLabelSet=new Set([0,Math.round((n-1)/3),Math.round(2*(n-1)/3),n-1]);
-  days.forEach((d,i)=>{if(cLabelSet.has(i))ctx.fillText(d.key.slice(5).replace('-','/'),pad.left+i*xStep+xStep/2,H-8);});
+  drawXLabels(ctx,days,period,i=>pad.left+i*xStep+xStep/2,H);
   days.forEach((d,i)=>{
     if(!d.data||d.data.calories===0)return;
     const v=d.data.calories,x=xBar(i),y=yOf(v),h=hOf(v);
     ctx.fillStyle=v>=CAL_MIN&&v<=CAL_MAX?'#48BB78':v>CAL_MAX?'#FC8181':'#6C63FF';
     ctx.fillRect(x,y,barW,h);
   });
+}
+
+function setGraphPeriod(p) {
+  graphPeriod=p;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('periodBtn'+{7:'7',30:'30',year:'Year'}[p]).classList.add('active');
+  const days=getGraphDays(p);
+  drawWeightGraph(days,p);
+  drawCalGraph(days,p);
 }
 
 // ─── ナビ・トースト ────────────────────────────────
