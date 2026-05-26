@@ -124,9 +124,25 @@ body {
 /* Manual input */
 .manual-name {
   background:var(--card2); border:1px solid var(--border); color:var(--text);
-  padding:10px 12px; border-radius:12px; font-size:14px; width:100%; margin-bottom:8px;
+  padding:10px 12px; border-radius:12px; font-size:14px; width:100%;
 }
 .manual-name::placeholder { color:var(--muted); }
+.autocomplete-wrap { position:relative; margin-bottom:8px; }
+.suggestion-list {
+  position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:400;
+  background:var(--card); border:1px solid rgba(108,99,255,0.5); border-radius:12px;
+  overflow:hidden; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+  max-height:210px; overflow-y:auto;
+}
+.suggestion-item {
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding:10px 14px; cursor:pointer; font-size:14px;
+  border-bottom:1px solid var(--border);
+}
+.suggestion-item:last-child { border-bottom:none; }
+.suggestion-item:hover, .suggestion-item:active { background:rgba(108,99,255,0.2); }
+.sug-name { flex:1; font-weight:600; }
+.sug-nums { font-size:12px; color:var(--muted); white-space:nowrap; }
 .manual-row { display:flex; gap:8px; align-items:center; }
 .manual-row input {
   background:var(--card2); border:1px solid var(--border); color:var(--text);
@@ -368,7 +384,10 @@ canvas { display:block; border-radius:8px; }
   </div>
   <div class="card">
     <div class="card-title">✏️ 手動で追加</div>
-    <input type="text" id="manualName" class="manual-name" placeholder="食品名">
+    <div class="autocomplete-wrap">
+      <input type="text" id="manualName" class="manual-name" placeholder="食品名を入力…（例：鶏むね肉）" oninput="onManualNameInput(this.value)" autocomplete="off">
+      <div id="suggestionList" class="suggestion-list" style="display:none"></div>
+    </div>
     <div class="manual-row">
       <input type="number" id="manualKcal" placeholder="kcal" inputmode="decimal">
       <input type="number" id="manualFat"  placeholder="脂質g" inputmode="decimal">
@@ -519,6 +538,94 @@ const DEFAULT_CHECKS = [
   { id:'c4', emoji:'🛁', label:'お風呂上がりのリンパ流し' },
   { id:'c5', emoji:'📝', label:'食事を記録した' },
 ];
+const FOOD_DB = [
+  // ご飯・おにぎり
+  {name:'白米 小盛',kcal:200,fat:0.3},{name:'白米 普通',kcal:250,fat:0.5},{name:'白米 大盛',kcal:350,fat:0.9},
+  {name:'玄米 普通',kcal:230,fat:1.0},{name:'おにぎり 梅',kcal:170,fat:0.6},{name:'おにぎり 鮭',kcal:185,fat:2.5},
+  {name:'おにぎり ツナマヨ',kcal:220,fat:7.0},{name:'おにぎり 昆布',kcal:165,fat:0.5},{name:'おにぎり 明太子',kcal:175,fat:1.5},
+  {name:'おにぎり チーズ',kcal:210,fat:5.0},
+  // 麺類
+  {name:'ラーメン 醤油',kcal:480,fat:15},{name:'ラーメン 味噌',kcal:550,fat:20},{name:'ラーメン 豚骨',kcal:600,fat:25},
+  {name:'つけ麺',kcal:650,fat:20},{name:'担々麺',kcal:700,fat:30},{name:'うどん かけ',kcal:280,fat:1.0},
+  {name:'きつねうどん',kcal:430,fat:8.0},{name:'天ぷらうどん',kcal:520,fat:15},{name:'そば ざる',kcal:290,fat:1.5},
+  {name:'そば かけ',kcal:260,fat:1.5},{name:'パスタ ナポリタン',kcal:550,fat:15},{name:'パスタ カルボナーラ',kcal:700,fat:30},
+  {name:'パスタ ミートソース',kcal:600,fat:20},{name:'パスタ ペペロンチーノ',kcal:580,fat:22},{name:'パスタ トマト',kcal:500,fat:12},
+  {name:'焼きそば',kcal:480,fat:12},{name:'チャーハン',kcal:500,fat:18},{name:'カップ麺',kcal:400,fat:15},
+  // 丼・定食
+  {name:'カレーライス',kcal:700,fat:20},{name:'牛丼 並',kcal:650,fat:20},{name:'牛丼 大盛',kcal:850,fat:26},
+  {name:'親子丼',kcal:620,fat:18},{name:'天丼',kcal:700,fat:22},{name:'鉄火丼',kcal:500,fat:8},
+  {name:'海鮮丼',kcal:450,fat:6},{name:'カツ丼',kcal:800,fat:30},{name:'焼き肉丼',kcal:700,fat:25},
+  {name:'マグロ丼',kcal:480,fat:5},{name:'とんかつ定食',kcal:850,fat:35},{name:'焼き魚定食',kcal:600,fat:15},
+  {name:'チキン南蛮定食',kcal:780,fat:30},
+  // パン
+  {name:'食パン 1枚',kcal:165,fat:2.7},{name:'バタートースト',kcal:200,fat:8.0},{name:'クロワッサン',kcal:220,fat:12},
+  {name:'メロンパン',kcal:350,fat:10},{name:'あんパン',kcal:280,fat:4.0},{name:'カレーパン',kcal:350,fat:18},
+  {name:'菓子パン',kcal:300,fat:10},{name:'コッペパン',kcal:220,fat:3.0},{name:'サンドイッチ',kcal:300,fat:10},
+  {name:'ホットドッグ',kcal:320,fat:14},{name:'肉まん',kcal:200,fat:6.0},{name:'ピザトースト',kcal:280,fat:12},
+  // 肉類
+  {name:'鶏むね肉 100g',kcal:113,fat:1.9},{name:'鶏もも肉 100g',kcal:190,fat:14},{name:'鶏ささみ 100g',kcal:98,fat:0.8},
+  {name:'豚ロース 100g',kcal:260,fat:19},{name:'豚バラ 100g',kcal:395,fat:35},{name:'豚ヒレ 100g',kcal:130,fat:3.7},
+  {name:'牛ロース 100g',kcal:380,fat:32},{name:'牛もも 100g',kcal:180,fat:9.0},{name:'牛ひき肉 100g',kcal:272,fat:21},
+  {name:'ハンバーグ',kcal:350,fat:22},{name:'唐揚げ 3個',kcal:280,fat:18},{name:'唐揚げ 5個',kcal:460,fat:30},
+  {name:'焼き鳥 1本',kcal:70,fat:3.0},{name:'とんかつ',kcal:450,fat:28},{name:'生姜焼き',kcal:380,fat:22},
+  {name:'ウインナー 2本',kcal:120,fat:10},{name:'ベーコン 2枚',kcal:80,fat:6.0},
+  {name:'焼き肉 200g',kcal:500,fat:35},{name:'チキンステーキ',kcal:250,fat:12},{name:'ローストビーフ 100g',kcal:190,fat:9.0},
+  // 魚介類
+  {name:'鮭 1切れ',kcal:170,fat:8.0},{name:'サバ 1切れ',kcal:270,fat:20},{name:'アジ 1尾',kcal:120,fat:5.0},
+  {name:'タラ 1切れ',kcal:90,fat:0.5},{name:'ブリ 1切れ',kcal:220,fat:15},{name:'タラ蒸し',kcal:90,fat:0.5},
+  {name:'マグロ 刺身 5切れ',kcal:100,fat:1.0},{name:'サーモン 刺身 5切れ',kcal:120,fat:5.0},
+  {name:'エビフライ 3本',kcal:230,fat:12},{name:'ツナ缶 1缶',kcal:140,fat:7.0},
+  {name:'さば缶',kcal:200,fat:12},{name:'魚肉ソーセージ',kcal:100,fat:4.0},
+  {name:'ししゃも 5本',kcal:150,fat:8.0},{name:'焼き魚',kcal:200,fat:8.0},{name:'刺身盛り合わせ',kcal:200,fat:4.0},
+  // 野菜
+  {name:'キャベツ 100g',kcal:23,fat:0.2},{name:'レタス 100g',kcal:12,fat:0.1},
+  {name:'ほうれん草 100g',kcal:20,fat:0.4},{name:'ブロッコリー 100g',kcal:33,fat:0.4},
+  {name:'トマト 1個',kcal:35,fat:0.1},{name:'きゅうり 1本',kcal:14,fat:0.1},
+  {name:'玉ねぎ 1/2個',kcal:35,fat:0.1},{name:'じゃがいも 1個',kcal:76,fat:0.1},
+  {name:'さつまいも 100g',kcal:132,fat:0.2},{name:'かぼちゃ 100g',kcal:91,fat:0.3},
+  {name:'にんじん 1本',kcal:37,fat:0.1},{name:'もやし 100g',kcal:14,fat:0.1},
+  {name:'なす 1本',kcal:22,fat:0.1},{name:'ゴーヤ 100g',kcal:17,fat:0.1},
+  // 豆腐・大豆
+  {name:'豆腐 1/2丁',kcal:80,fat:4.0},{name:'豆腐 1丁',kcal:160,fat:8.0},
+  {name:'厚揚げ 1枚',kcal:150,fat:11},{name:'納豆 1パック',kcal:100,fat:5.0},
+  {name:'豆乳 200ml',kcal:90,fat:4.0},{name:'枝豆 100g',kcal:135,fat:6.0},
+  // 卵・乳製品
+  {name:'卵 1個',kcal:80,fat:6.0},{name:'目玉焼き',kcal:100,fat:8.0},
+  {name:'スクランブルエッグ',kcal:150,fat:12},{name:'ゆで卵 1個',kcal:78,fat:5.0},
+  {name:'オムレツ',kcal:200,fat:15},{name:'牛乳 200ml',kcal:140,fat:7.6},
+  {name:'ヨーグルト 無糖',kcal:60,fat:0.2},{name:'ヨーグルト 加糖',kcal:100,fat:3.0},
+  {name:'チーズ 1枚',kcal:70,fat:5.0},{name:'バター 10g',kcal:75,fat:8.0},
+  // ファストフード
+  {name:'ハンバーガー',kcal:260,fat:11},{name:'チーズバーガー',kcal:310,fat:14},
+  {name:'ビッグマック',kcal:530,fat:28},{name:'てりやきバーガー',kcal:400,fat:17},
+  {name:'チキンナゲット 5個',kcal:230,fat:15},{name:'フライドポテト M',kcal:450,fat:22},
+  {name:'フライドポテト L',kcal:570,fat:28},{name:'ピザ 1切れ',kcal:250,fat:10},
+  // お菓子・スナック・果物
+  {name:'ポテトチップス 60g',kcal:330,fat:20},{name:'チョコレート 50g',kcal:280,fat:16},
+  {name:'アイスクリーム',kcal:200,fat:11},{name:'プリン 1個',kcal:120,fat:3.0},
+  {name:'ショートケーキ',kcal:350,fat:17},{name:'チーズケーキ',kcal:330,fat:22},
+  {name:'クッキー 3枚',kcal:150,fat:7.0},{name:'おせんべい 1枚',kcal:38,fat:0.3},
+  {name:'アーモンド 10粒',kcal:60,fat:5.5},{name:'ドーナツ',kcal:280,fat:14},
+  {name:'大福 1個',kcal:200,fat:0.5},{name:'どら焼き',kcal:280,fat:4.0},
+  {name:'バナナ',kcal:90,fat:0.2},{name:'りんご',kcal:60,fat:0.1},
+  {name:'みかん 1個',kcal:40,fat:0.1},{name:'ブドウ 100g',kcal:59,fat:0.1},
+  // 飲み物
+  {name:'コーラ 500ml',kcal:215,fat:0},{name:'オレンジジュース 200ml',kcal:85,fat:0.1},
+  {name:'スポーツドリンク 500ml',kcal:115,fat:0},{name:'カフェラテ M',kcal:180,fat:7.0},
+  {name:'缶コーヒー',kcal:70,fat:0.5},{name:'缶ビール 350ml',kcal:140,fat:0},
+  {name:'日本酒 1合',kcal:200,fat:0},{name:'ワイン グラス',kcal:80,fat:0},
+  {name:'ハイボール',kcal:70,fat:0},{name:'プロテイン 1杯',kcal:120,fat:1.5},
+  // 和食・その他
+  {name:'味噌汁',kcal:50,fat:1.5},{name:'茶碗蒸し',kcal:80,fat:3.0},
+  {name:'冷奴',kcal:80,fat:4.5},{name:'揚げ出し豆腐',kcal:150,fat:10},
+  {name:'ひじき煮',kcal:70,fat:2.0},{name:'ほうれん草おひたし',kcal:25,fat:0.5},
+  {name:'きんぴらごぼう',kcal:120,fat:4.0},{name:'肉じゃが',kcal:250,fat:8.0},
+  {name:'筑前煮',kcal:200,fat:6.0},{name:'おでん 1人前',kcal:250,fat:5.0},
+  {name:'寿司 1貫',kcal:50,fat:1.0},{name:'巻き寿司 1本',kcal:300,fat:3.0},
+  {name:'天ぷら 1人前',kcal:400,fat:20},{name:'コンビニ弁当',kcal:700,fat:20},
+  {name:'ちくわ 1本',kcal:50,fat:1.5},{name:'かまぼこ 5切れ',kcal:60,fat:0.5},
+];
+
 const FOODS = [
   { name:'白米 大盛', kcal:350, fat:0.9 }, { name:'白米 普通', kcal:250, fat:0.5 },
   { name:'鶏むね肉', kcal:170, fat:2.5 },  { name:'鶏もも肉', kcal:250, fat:14  },
@@ -614,6 +721,12 @@ function init() {
   }
   if (state.weight  != null) document.getElementById('weightInput').value  = state.weight;
   if (state.bodyFat != null) document.getElementById('bodyFatInput').value = state.bodyFat;
+
+  document.addEventListener('click', e => {
+    const wrap = document.querySelector('.autocomplete-wrap');
+    if (wrap && !wrap.contains(e.target))
+      document.getElementById('suggestionList').style.display = 'none';
+  });
 }
 
 // ─── チェックリスト ───────────────────────────────
@@ -738,7 +851,33 @@ function addManualFood() {
   document.getElementById('manualName').value='';
   document.getElementById('manualKcal').value='';
   document.getElementById('manualFat').value='';
+  document.getElementById('suggestionList').style.display='none';
   renderFoodLog(); updateMeters(); showToast(`＋${kcal} kcal 追加！`); save();
+}
+
+// ─── オートコンプリート ────────────────────────────
+let _sugMatches = [];
+function onManualNameInput(val) {
+  const list = document.getElementById('suggestionList');
+  const q = val.trim();
+  if (!q) { list.style.display='none'; return; }
+  _sugMatches = FOOD_DB.filter(f => f.name.includes(q)).slice(0, 8);
+  if (!_sugMatches.length) { list.style.display='none'; return; }
+  list.innerHTML = _sugMatches.map((f, i) =>
+    `<div class="suggestion-item" onmousedown="selectSuggestion(${i})">
+      <span class="sug-name">${f.name}</span>
+      <span class="sug-nums">${f.kcal}kcal / 脂${f.fat}g</span>
+    </div>`
+  ).join('');
+  list.style.display = 'block';
+}
+function selectSuggestion(idx) {
+  const f = _sugMatches[idx];
+  if (!f) return;
+  document.getElementById('manualName').value = f.name;
+  document.getElementById('manualKcal').value = f.kcal;
+  document.getElementById('manualFat').value  = f.fat;
+  document.getElementById('suggestionList').style.display = 'none';
 }
 function deleteFood(id) {
   const idx=state.foodLog.findIndex(f=>f.id===id);
